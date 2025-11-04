@@ -26,15 +26,16 @@ public class App {
             System.out.println(" - " + m.activos.get(i));
         }
         System.out.println("OK: Mercado valido");
-
-        // 2) Perfil de ejemplo
-        Perfil perfil = new Perfil(
-                100_000.0,                 // presupuesto
-                0.25,                      // riesgo max
-                0.15,                      // max % por activo
-                Map.of("Accion", 0.70, "Bono", 0.60, "ETF", 0.50),
-                Map.of("Tecnologia", 0.60, "Energia", 0.50, "Salud", 0.50)
-        );
+        
+        // Perfil del cliente (plazo 1 año fijo por cátedra)
+Perfil perfil = new Perfil(
+    100_000.0,  // presupuesto
+    0.15,       // maxPorActivo (15%)
+    Map.of("Accion", 0.70, "Bono", 0.60, "ETF", 0.50),
+    Map.of("Tecnologia", 0.60, "Energia", 0.50, "Salud", 0.50),
+    "Moderadamente agresivo", // Conservador / Moderadamente conservador / Moderado / Moderadamente agresivo / Agresivo
+    0.18        // retorno mínimo deseado por el cliente (>= al mínimo del perfil)
+ );
         ValidadorPerfil.validar(perfil);
         System.out.println("OK: Perfil valido");
 
