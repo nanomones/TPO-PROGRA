@@ -55,57 +55,63 @@ public final class BBPortafolio {
                                   double[] bestRet, Asignacion[] best, double[] bestRisk, int[] nodos) {
         nodos[0]++;
 
+        // Hoja o sin presupuesto útil
         if (k == ord.size() || presupuestoRest < 1e-6) {
             evaluarYActualizar(m, p, asig, bestRet, best, bestRisk);
             return;
         }
 
+        // Poda por cota superior (bound optimista)
         double ub = boundOptimista(m, p, ord, k, asig, usoTipo, usoSector, presupuestoRest);
         if (ub <= bestRet[0] + 1e-12) return;
 
+        // Nodo actual (¡acá van las variables que te faltaban!)
         Activo act = m.activos.get(ord.get(k));
-        double topeActivo = p.maxPorActivo * p.presupuesto;
+        double topeActivoAbs = p.maxPorActivo * p.presupuesto;
+        double unit = act.montoMin;
 
-// calcular qmax respetando presupuesto y tope por activo
-int qmax = (int)Math.floor(Math.min(presupuestoRest, topeActivoAbs) / unit);
+        // qmax según presupuesto y tope por activo
+        int qmax = (int)Math.floor(Math.min(presupuestoRest, topeActivoAbs) / unit);
 
-// exploramos q = qmax..0 para probar primero tomar más (mejor cota inferior temprano)
-for (int q = qmax; q >= 0; q--) {
-    double delta = q * unit;                 // monto a sumar para este activo
-    if (delta < 1e-9) {
-        // rama q=0: no tomar este activo
-        backtrack(k+1, m, p, ord, asig, presupuestoRest, usoTipo, usoSector, bestRet, best, bestRisk, nodos);
-        continue;
+        // Exploramos q = qmax..0 (primero más monto ⇒ mejor cota inferior temprano)
+        for (int q = qmax; q >= 0; q--) {
+            double delta = q * unit;  // monto a sumar para este activo
+
+            if (delta < 1e-9) {
+                // Rama q=0: NO TOMAR este activo
+                backtrack(k+1, m, p, ord, asig, presupuestoRest, usoTipo, usoSector, bestRet, best, bestRisk, nodos);
+                continue;
+            }
+
+            // Chequeo de límites por tipo/sector con delta
+            double nuevoTipo   = usoTipo.getOrDefault(act.tipo, 0.0) + delta;
+            double nuevoSector = usoSector.getOrDefault(act.sector, 0.0) + delta;
+            double limTipo   = p.maxPorTipo.getOrDefault(act.tipo, 1.0)*p.presupuesto;
+            double limSector = p.maxPorSector.getOrDefault(act.sector,1.0)*p.presupuesto;
+            if (nuevoTipo > limTipo + 1e-9 || nuevoSector > limSector + 1e-9) continue;
+
+            // Aplicar delta
+            asig.put(act.ticker, asig.getOrDefault(act.ticker, 0.0) + delta);
+            usoTipo.put(act.tipo, nuevoTipo);
+            usoSector.put(act.sector, nuevoSector);
+
+            // Poda por riesgo (tentativa)
+            Asignacion parcial = new Asignacion(asig);
+            double risk = CalculadoraRiesgo.riesgoCartera(m, parcial, p.presupuesto);
+            if (risk <= p.riesgoMax + 1e-9) {
+                backtrack(k+1, m, p, ord, asig, presupuestoRest - delta,
+                          usoTipo, usoSector, bestRet, best, bestRisk, nodos);
+            }
+
+            // Deshacer
+            double prev = asig.get(act.ticker) - delta;
+            if (prev <= 1e-12) asig.remove(act.ticker); else asig.put(act.ticker, prev);
+            usoTipo.put(act.tipo, nuevoTipo - delta);
+            usoSector.put(act.sector, nuevoSector - delta);
+        }
     }
 
-    // chequear límites por tipo/sector con delta
-    double nuevoTipo   = usoTipo.getOrDefault(act.tipo, 0.0) + delta;
-    double nuevoSector = usoSector.getOrDefault(act.sector, 0.0) + delta;
-    double limTipo   = p.maxPorTipo.getOrDefault(act.tipo, 1.0)*p.presupuesto;
-    double limSector = p.maxPorSector.getOrDefault(act.sector,1.0)*p.presupuesto;
-    if (nuevoTipo > limTipo + 1e-9 || nuevoSector > limSector + 1e-9) continue;
-
-    // aplicar delta
-    asig.put(act.ticker, asig.getOrDefault(act.ticker, 0.0) + delta);
-    usoTipo.put(act.tipo, nuevoTipo);
-    usoSector.put(act.sector, nuevoSector);
-
-    // poda por riesgo (tentativa)
-    Asignacion parcial = new Asignacion(asig);
-    double risk = CalculadoraRiesgo.riesgoCartera(m, parcial, p.presupuesto);
-    if (risk <= p.riesgoMax + 1e-9) {
-        backtrack(k+1, m, p, ord, asig, presupuestoRest - delta, usoTipo, usoSector, bestRet, best, bestRisk, nodos);
-    }
-
-    // deshacer
-    double prev = asig.get(act.ticker) - delta;
-    if (prev <= 1e-12) asig.remove(act.ticker); else asig.put(act.ticker, prev);
-    usoTipo.put(act.tipo, nuevoTipo - delta);
-    usoSector.put(act.sector, nuevoSector - delta);
-}
-
-    }
-
+    // Cota superior: retorno parcial + fraccional optimista con presupuesto y límites (sin riesgo, rápido)
     private static double boundOptimista(Mercado m, Perfil p, List<Integer> ord, int k,
                                          Map<String,Double> asig,
                                          Map<String,Double> usoTipo, Map<String,Double> usoSector,
