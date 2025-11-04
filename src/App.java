@@ -4,7 +4,8 @@ import io.CargadorDatosJson;
 public class App {
     public static void main(String[] args) {
         // 👇 tu JSON está en la carpeta "datos"
-        String ruta = "datos/mercado.json";
+        String ruta = "C:/Users/mones/OneDrive/Documentos/GitHub/TPO-PROGRA/datos/mercado.json";
+;
 
         Mercado mercado = CargadorDatosJson.cargarMercado(ruta);
 
