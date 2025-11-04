@@ -27,8 +27,8 @@ public final class BBPortafolio {
         orden.sort((i,j)->{
             Activo ai = m.activos.get(i);
             Activo aj = m.activos.get(j);
-            double si = ai.sigma>0 ? ai.retorno/ai.sigma : ai.retorno;
-            double sj = aj.sigma>0 ? aj.retorno/aj.sigma : aj.retorno;
+            double si = ai.sigma>1e-12 ? ai.retorno/ai.sigma : ai.retorno;
+            double sj = aj.sigma>1e-12 ? aj.retorno/aj.sigma : aj.retorno;
             return Double.compare(sj, si);
         });
 
@@ -65,7 +65,7 @@ public final class BBPortafolio {
         double ub = boundOptimista(m, p, ord, k, asig, usoTipo, usoSector, presupuestoRest);
         if (ub <= bestRet[0] + 1e-12) return;
 
-        // Nodo actual (¡acá van las variables que te faltaban!)
+        // Nodo actual
         Activo act = m.activos.get(ord.get(k));
         double topeActivoAbs = p.maxPorActivo * p.presupuesto;
         double unit = act.montoMin;
@@ -86,8 +86,8 @@ public final class BBPortafolio {
             // Chequeo de límites por tipo/sector con delta
             double nuevoTipo   = usoTipo.getOrDefault(act.tipo, 0.0) + delta;
             double nuevoSector = usoSector.getOrDefault(act.sector, 0.0) + delta;
-            double limTipo   = p.maxPorTipo.getOrDefault(act.tipo, 1.0)*p.presupuesto;
-            double limSector = p.maxPorSector.getOrDefault(act.sector,1.0)*p.presupuesto;
+            double limTipo     = p.maxPorTipo.getOrDefault(act.tipo, 1.0)*p.presupuesto;
+            double limSector   = p.maxPorSector.getOrDefault(act.sector,1.0)*p.presupuesto;
             if (nuevoTipo > limTipo + 1e-9 || nuevoSector > limSector + 1e-9) continue;
 
             // Aplicar delta
@@ -149,13 +149,42 @@ public final class BBPortafolio {
         try {
             ValidadorAsignacion.validar(m, p, a);
             double r = CalculadoraRetorno.retornoCartera(m, a, p.presupuesto);
-            if (r > bestRet[0]) {
-                bestRet[0] = r;
-                best[0] = a;
+
+            boolean mejor = false;
+            if (r > bestRet[0] + 1e-12) {
+                mejor = true;
+            } else if (Math.abs(r - bestRet[0]) <= 1e-12) {
+                // Empate en retorno: desempatar por menor correlación media
+                double corrA = correlacionMedia(m, a);
+                double corrBest = (best[0] == null) ? Double.POSITIVE_INFINITY : correlacionMedia(m, best[0]);
+                if (corrA < corrBest - 1e-12) mejor = true;
+            }
+
+            if (mejor) {
+                bestRet[0]  = r;
+                best[0]     = a;
                 bestRisk[0] = CalculadoraRiesgo.riesgoCartera(m, a, p.presupuesto);
             }
         } catch (IllegalArgumentException ignore) {
             // nodo no factible
         }
     }
+
+    // --- helper local: correlación media de la cartera (solo pares seleccionados) ---
+    private static double correlacionMedia(Mercado m, Asignacion a){
+        List<Integer> idx = new ArrayList<>();
+        for (String t : a.getMontos().keySet()){
+            if (a.getMonto(t) > 0.0) idx.add(m.indexOf(t));
+        }
+        if (idx.size() < 2) return 0.0;
+        double sum=0.0; int cnt=0;
+        for (int i=0;i<idx.size();i++){
+            for (int j=i+1;j<idx.size();j++){
+                sum += m.rho[idx.get(i)][idx.get(j)];
+                cnt++;
+            }
+        }
+        return cnt==0?0.0:sum/cnt;
+    }
 }
+
