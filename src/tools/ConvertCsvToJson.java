@@ -105,26 +105,45 @@ private static final String RUTA_SALIDA  = "data/mercado.json";
         if (v > 1.5) return v / 100.0; // si parece porcentaje (12 -> 0.12)
         return v;
     }
+private static Map<String,String> mapearColumnas(Set<String> cols) {
+    Map<String,String> m = new HashMap<>();
+    for (String c : cols) {
+        String k = c.toLowerCase().trim();
 
-    private static Map<String,String> mapearColumnas(Set<String> cols) {
-        Map<String,String> m = new HashMap<>();
-        for (String c : cols) {
-            String k = c.toLowerCase().trim();
-            if (k.equals("ticker") || k.equals("simbolo") || k.equals("símbolo")) m.putIfAbsent("ticker", c);
-            else if (k.equals("tipo") || k.contains("clase")) m.putIfAbsent("tipo", c);
-            else if (k.equals("sector") || k.equals("industria")) m.putIfAbsent("sector", c);
-            else if (k.contains("retorno") || k.contains("rendimi") || k.contains("expected_return") || k.equals("mu") || k.equals("r"))
-                m.putIfAbsent("retorno", c);
-            else if (k.equals("sigma") || k.contains("volat") || k.contains("desvio") || k.contains("desvío") || k.equals("std") || k.equals("vol"))
-                m.putIfAbsent("sigma", c);
-            else if (k.contains("montomin") || k.contains("monto_min") || k.contains("minimo") || k.contains("mínimo") || k.contains("inversion_min"))
-                m.putIfAbsent("montoMin", c);
-        }
-        List<String> req = List.of("ticker","tipo","sector","retorno","sigma","montoMin");
-        for (String r : req) if (!m.containsKey(r))
-            throw new IllegalArgumentException("No pude inferir columna: " + r + " a partir de " + cols);
-        return m;
+        // ticker
+        if (k.equals("ticker") || k.equals("simbolo") || k.equals("símbolo"))
+            m.putIfAbsent("ticker", c);
+
+        // tipo
+        else if (k.equals("tipo") || k.contains("clase"))
+            m.putIfAbsent("tipo", c);
+
+        // sector
+        else if (k.equals("sector") || k.equals("industria"))
+            m.putIfAbsent("sector", c);
+
+        // retorno (agrego RetornoEsperado)
+        else if (k.contains("retorno") || k.contains("rendimi") || k.contains("expected_return")
+                 || k.equals("mu") || k.equals("r") || k.equals("retornoesperado"))
+            m.putIfAbsent("retorno", c);
+
+        // sigma (agrego Riesgo)
+        else if (k.equals("sigma") || k.contains("volat") || k.contains("desvio") || k.contains("desvío")
+                 || k.equals("std") || k.equals("vol") || k.equals("riesgo"))
+            m.putIfAbsent("sigma", c);
+
+        // monto mínimo (agrego InversionMinima)
+        else if (k.contains("montomin") || k.contains("monto_min") || k.contains("minimo") || k.contains("mínimo")
+                 || k.contains("inversion_min") || k.equals("inversionminima"))
+            m.putIfAbsent("montoMin", c);
+        // cualquier otra columna (2019..2023) se ignora
     }
+
+    List<String> req = List.of("ticker","tipo","sector","retorno","sigma","montoMin");
+    for (String r : req) if (!m.containsKey(r))
+        throw new IllegalArgumentException("No pude inferir columna: " + r + " a partir de " + cols);
+    return m;
+}
 
     private static class Correlacion {
         List<String> tickers;
