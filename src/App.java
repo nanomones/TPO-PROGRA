@@ -3,7 +3,7 @@ import io.CargadorDatosJson;
 
 public class App {
     public static void main(String[] args) {
-        // OJO: tu archivo está en la carpeta "datos/"
+        // 👇 tu JSON está en la carpeta "datos"
         String ruta = "datos/mercado.json";
 
         Mercado mercado = CargadorDatosJson.cargarMercado(ruta);
