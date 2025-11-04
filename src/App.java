@@ -43,7 +43,11 @@ public class App {
 
         Cliente c = new Cliente("Cliente Demo", perfil);
         System.out.println("Cliente: " + c.nombre);
-        // 5) Demo de asignación y validación
+        // Semilla factible (siempre valida)
+var a0 = heuristicas.SemillaFactible.construir(m, perfil);
+io.Reporte.imprimirResumen(m, perfil, a0);
+System.out.println("✔ Parte 1: semilla factible generada y reportada");
+  // 5) Demo de asignación y validación
 // (ajustá montos a tu gusto, esto es solo para probar la validación)
 var asignacion = new java.util.LinkedHashMap<String, Double>();
 // invertimos 10% del presupuesto en los 3 primeros activos, por ejemplo
