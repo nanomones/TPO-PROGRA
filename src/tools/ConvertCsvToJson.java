@@ -175,5 +175,22 @@ public class ConvertCsvToJson {
         }
         return out;
     }
+        private static List<Map<String,String>> leerCsvComoMaps(String ruta) throws IOException {
+        List<String> lines = Files.readAllLines(Path.of(ruta));
+        if (lines.isEmpty()) throw new IllegalArgumentException("CSV vacío: " + ruta);
+
+        String[] headers = splitCsv(lines.get(0));
+        List<Map<String,String>> rows = new ArrayList<>();
+
+        for (int i = 1; i < lines.size(); i++) {
+            String[] values = splitCsv(lines.get(i));
+            Map<String,String> row = new LinkedHashMap<>();
+            for (int j = 0; j < headers.length && j < values.length; j++) {
+                row.put(headers[j].trim(), values[j].trim());
+            }
+            rows.add(row);
+        }
+        return rows;
+    }
 
 }
