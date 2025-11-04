@@ -1,103 +1,140 @@
-# TPO — Optimización de Portafolio (Programación III)
-
-Proyecto en Java para construir un **portafolio de inversión** que **maximiza retorno** respetando **riesgo máximo**, **presupuesto**, **diversificación** y **tamaño** (3 a 6 activos).  
-Se implementa **Backtracking + Branch & Bound (Ramificación y Poda)** con **cotas** (LB/UB) y cálculo de riesgo con **matriz de correlaciones**.
-
----
-
-##  Objetivo
-- Elegir 3–6 activos que:
-  - Maximicen el **retorno esperado**.
-  - Cumplan **riesgo de portafolio ≤ riesgoMáximo** (según perfil).
-  - No superen **monto máximo** del cliente.
-  - Respeten **diversificación** por sector/tipo.
-  - Minimicen **correlación** (mejor diversificación).
+# 💼 TPO — Optimización de Portafolio de Inversión  
+**Materia:** Programación III  
+**Lenguaje:** Java  
+**Integrantes:** Ignacio Mones Ruiz — Francisco Gomez  
+**Año:** 2025  
 
 ---
 
-##  Estructura del proyecto
-src/
-model/
-Activo.java
-Perfil.java
-Cliente.java
-Mercado.java
-Portafolio.java
-core/
-Riesgo.java
-Validacion.java
-Greedy.java
-Bound.java
-BranchAndBound.java
-io/
-CargadorDatos.java
-Reporte.java
-App.java
-data/
-activos.csv
-correlaciones.csv
-docs/
-Informe_TPO.docx
+## 🧭 Descripción general
+
+Este proyecto implementa un sistema que construye un **portafolio de inversión óptimo**, maximizando el **retorno esperado** y cumpliendo con las **restricciones de riesgo, presupuesto y diversificación** definidas por un cliente.
+
+El algoritmo combina **Backtracking** con **Ramificación y Poda (Branch & Bound)** para encontrar la mejor combinación de activos según el perfil del inversor.
 
 ---
 
-## 📥 Datos de entrada
+## 🎯 Objetivo del sistema
 
-### `data/activos.csv` (ejemplo de columnas)
-ticker,tipo,sector,retorno,sigma,montoMin
-AAPL,Accion,Tecnologia,0.12,0.18,1000
-XOM,Accion,Energia,0.09,0.16,1000
-TLT,Bono,Bonos,0.05,0.08,1000
+Diseñar un portafolio que:
 
-### `data/correlaciones.csv` (matriz n×n, diagonal=1)
-- Primera fila: encabezados (tickers).
-- Cada fila: `ticker_i` seguido de n valores `rho(i, j)` en [−1, 1].
+- ✅ **Maximice el retorno esperado (ganancia)**.  
+- ⚖️ **Respete el riesgo máximo permitido**, según el perfil del cliente.  
+- 💰 **No supere el monto máximo disponible para invertir**.  
+- 🧩 **Cumpla las reglas de diversificación** (por tipo de activo y sector).  
+- 🔢 **Incluya entre 3 y 6 activos**.  
+- 🔗 **Minimice la correlación entre activos**, mejorando la diversificación.  
+- ⏱️ **Considere el plazo de inversión esperado** (plazos cortos → menos riesgo, plazos largos → mayor tolerancia).
+
+---
+
+## 📊 Datos utilizados
+
+### Activos financieros (`data/activos.csv`)
+Cada activo contiene:
+| Campo | Descripción |
+|--------|--------------|
+| **Ticker** | Identificador (ej: AAPL, XOM, TLT) |
+| **Tipo** | Acción, Bono, ETF, CEDEAR, ON, etc. |
+| **Sector** | Tecnología, Energía, Finanzas, etc. |
+| **Retorno esperado** | Rentabilidad anual esperada (en decimal) |
+| **Riesgo (σ)** | Desvío estándar del rendimiento (en decimal) |
+| **Monto mínimo** | Inversión mínima en ese activo |
+
+### Correlaciones (`data/correlaciones.csv`)
+Una **matriz n×n** con los coeficientes de correlación entre cada par de activos (de −1 a +1).  
+La diagonal principal vale 1.
 
 Ejemplo:
-,tickers,AAPL,XOM,TLT
+,ticker,AAPL,XOM,TLT
 AAPL,1,0.35,-0.10
 XOM,0.35,1,0.05
 TLT,-0.10,0.05,1
-> **Importante:** `retorno` y `sigma` en **decimales** (12% → 0.12).
+
+yaml
+Copiar código
 
 ---
 
-## ⚙️ Configuración del cliente (ejemplo)
-- **Perfil**: Conservador / Moderado / Agresivo (define `riesgoMax`, `retornoMin`).
-- **Parámetros**:
-  - `montoMax`, `plazoAnios`
-  - `minActivos=3`, `maxActivos=6`
-  - `maxPorSector` (p. ej. Tecnología ≤ 2)
-  - `maxPorTipo` (p. ej. Acción ≤ 4)
+## 👤 Parámetros del cliente
 
-*(Se cargan en `App.java` o `CargadorDatos.java`, según implementación.)*
+Cada cliente define:
 
----
-
-## 🧠 Algoritmo (resumen técnico)
-
-- **Backtracking + Branch & Bound**:
-  - Cada nivel decide **tomar/no tomar** el activo *i*.
-  - **LB (cota inferior)**: solución **greedy factible** inicial (sin fracciones).
-  - **UB (cota superior)**: **greedy fraccional** con presupuesto remanente (optimista).
-  - **Poda**: si `UB ≤ mejor`, se descarta la rama.
-- **Riesgo de cartera**:
-  - Covarianza: `Σᵢⱼ = ρᵢⱼ · σᵢ · σⱼ`
-  - Varianza: `varP = wᵀ Σ w`
-  - Riesgo: `σₚ = sqrt(varP)`
+| Parámetro | Descripción |
+|------------|--------------|
+| **Perfil** | Conservador / Moderado / Agresivo |
+| **Riesgo máximo permitido** | σₚ ≤ límite del perfil |
+| **Retorno mínimo deseado** | Rₚ ≥ umbral del perfil |
+| **Monto máximo** | Capital disponible para invertir |
+| **Plazo esperado (años)** | Horizonte temporal de inversión |
+| **Diversificación** | Máximo por tipo y sector (ej: máx 2 acciones de Tecnología) |
+| **Cantidad de activos** | Entre 3 y 6 |
 
 ---
 
-## ▶️ Compilar y ejecutar
+## ⚙️ Funcionamiento del algoritmo
 
-### Requisitos
-- Java 17+ (o la versión que use su cátedra)
-- (Opcional) Maven/Gradle si usan build tool
+El algoritmo se basa en **Backtracking + Branch & Bound (Ramificación y Poda)**.
 
-### Sin build tool
+1. **Backtracking:**  
+   Se construye el portafolio evaluando cada activo: *tomarlo o no tomarlo*.  
+   El árbol de decisiones explora todas las combinaciones posibles (2ⁿ ramas).
+
+2. **Branch & Bound:**  
+   Se aplican **cotas** para **poda temprana**:
+   - **Cota Inferior (LB):** solución *greedy* factible inicial (sin fracciones).  
+   - **Cota Superior (UB):** solución *optimista* (greedy fraccional) con el presupuesto restante.  
+   Si `UB ≤ mejorLB`, se **poda la rama**.
+
+3. **Riesgo del portafolio:**  
+   Se calcula usando la **matriz de covarianzas Σ**, derivada de las correlaciones:
+   \[
+   Σ_{ij} = ρ_{ij} · σ_i · σ_j
+   \]
+   \[
+   σ_p = \sqrt{w^T · Σ · w}
+   \]
+   donde `w` son los pesos de inversión.
+
+4. **Validaciones:**
+   - Riesgo total ≤ riesgo máximo del perfil.  
+   - Retorno total ≥ retorno mínimo.  
+   - Monto total ≤ presupuesto.  
+   - 3 ≤ activos ≤ 6.  
+   - Cumplir límites por tipo y sector.
+
+---
+
+## 🧮 Estructura del código (Java)
+
+src/
+model/
+Activo.java # Clase con datos de cada activo
+Perfil.java # Define límites de riesgo y retorno
+Cliente.java # Preferencias y presupuesto del cliente
+Mercado.java # Lista de activos + matriz de correlaciones
+Portafolio.java # Composición del portafolio (selección + pesos)
+
+core/
+Riesgo.java # Cálculo de riesgo total (σₚ = √(wᵀΣw))
+Validacion.java # Reglas del sistema (riesgo, retorno, diversificación)
+Greedy.java # Estrategia para LB (solución factible inicial)
+Bound.java # Cálculo de UB (estimación optimista)
+BranchAndBound.java# Algoritmo principal con poda
+
+io/
+CargadorDatos.java # Lee CSV (activos, correlaciones)
+Reporte.java # Genera y muestra los resultados
+
+App.java # Punto de entrada
+
+yaml
+Copiar código
+
+---
+
+## ▶️ Ejecución
+
+### Compilación manual
 ```bash
-# compilar
 javac -d bin $(find src -name "*.java")
-
-# ejecutar
-java -cp bin App
