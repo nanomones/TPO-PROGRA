@@ -15,9 +15,9 @@ import com.google.gson.*;
 public class ConvertCsvToJson {
 
     // Ajustá las rutas si tus archivos están en otra carpeta:
-    private static final String RUTA_ACTIVOS = "activos_financieros_60.csv";
-    private static final String RUTA_CORR    = "correlaciones_60.csv";
-    private static final String RUTA_SALIDA  = "data/mercado.json";
+private static final String RUTA_ACTIVOS = "activos.csv";
+private static final String RUTA_CORR    = "correlaciones.csv";
+private static final String RUTA_SALIDA  = "data/mercado.json";
 
     public static void main(String[] args) {
         try {
