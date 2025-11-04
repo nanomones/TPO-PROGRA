@@ -44,5 +44,21 @@ public class App {
         Cliente c = new Cliente("Cliente Demo", perfil);
         System.out.println("Cliente: " + c.nombre);
     }
+    // 5) Demo de asignación y validación
+// (ajustá montos a tu gusto, esto es solo para probar la validación)
+var asignacion = new java.util.LinkedHashMap<String, Double>();
+// invertimos 10% del presupuesto en los 3 primeros activos, por ejemplo
+double P = perfil.presupuesto;
+for (int i = 0; i < Math.min(3, m.activos.size()); i++) {
+    var t = m.activos.get(i).ticker;
+    asignacion.put(t, 0.10 * P);
+}
+// el resto en 0 (implícito)
+var a = new model.Asignacion(asignacion);
+
+// validar contra perfil/mercado
+validacion.ValidadorAsignacion.validar(m, perfil, a);
+System.out.println("OK: Asignacion valida. Riesgo dentro del limite.");
+
 }
 
