@@ -66,11 +66,6 @@ public final class BBPortafolio {
         Activo act = m.activos.get(ord.get(k));
         double topeActivo = p.maxPorActivo * p.presupuesto;
 
-      // Nodo actual
-Activo act = m.activos.get(ord.get(k));
-double topeActivoAbs = p.maxPorActivo * p.presupuesto;
-double unit = act.montoMin;
-
 // calcular qmax respetando presupuesto y tope por activo
 int qmax = (int)Math.floor(Math.min(presupuestoRest, topeActivoAbs) / unit);
 
