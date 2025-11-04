@@ -31,6 +31,19 @@ public final class Asignacion {
         Double v = this.montoPorTicker.get(ticker);
         return (v == null ? 0.0 : v);
     }
+        /** Compatibilidad con código existente: devuelve el monto por ticker */
+    public double monto(String ticker) {
+        return getMonto(ticker);
+    }
+
+    /** Total invertido (suma de todos los montos) */
+    public double totalInvertido() {
+        double sum = 0.0;
+        for (Double v : this.montoPorTicker.values()) {
+            if (v != null) sum += v;
+        }
+        return sum;
+    }
 
     /** Conjunto de tickers presentes en la asignación */
     public Set<String> tickers() {
