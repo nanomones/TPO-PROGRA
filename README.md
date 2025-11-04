@@ -1,140 +1,140 @@
-# 💼 TPO — Optimización de Portafolio de Inversión  
-**Materia:** Programación III  
-**Lenguaje:** Java  
-**Integrantes:** Ignacio Mones Ruiz — Francisco Gomez  
-**Año:** 2025  
+TPO – Programación III
+Optimización de Portafolios Financieros con Heurísticas y Branch & Bound
 
----
 
-## 🧭 Descripción general
+Descripción del Proyecto:
 
-Este proyecto implementa un sistema que construye un **portafolio de inversión óptimo**, maximizando el **retorno esperado** y cumpliendo con las **restricciones de riesgo, presupuesto y diversificación** definidas por un cliente.
+Este trabajo práctico tiene como objetivo desarrollar un sistema capaz de optimizar una cartera de inversión, seleccionando una combinación de activos financieros que maximice el retorno esperado sin superar un nivel de riesgo máximo permitido y cumpliendo con diversas restricciones (presupuesto, montos mínimos, topes por activo, tipo y sector).
 
-El algoritmo combina **Backtracking** con **Ramificación y Poda (Branch & Bound)** para encontrar la mejor combinación de activos según el perfil del inversor.
+El proyecto se desarrolló en Java, aplicando técnicas de búsqueda y optimización combinatoria vistas en la materia Programación III, como:
 
----
+Heurísticas Greedy
 
-## 🎯 Objetivo del sistema
+Branch & Bound (Ramificación y Poda)
 
-Diseñar un portafolio que:
+Análisis de complejidad y restricciones
 
-- ✅ **Maximice el retorno esperado (ganancia)**.  
-- ⚖️ **Respete el riesgo máximo permitido**, según el perfil del cliente.  
-- 💰 **No supere el monto máximo disponible para invertir**.  
-- 🧩 **Cumpla las reglas de diversificación** (por tipo de activo y sector).  
-- 🔢 **Incluya entre 3 y 6 activos**.  
-- 🔗 **Minimice la correlación entre activos**, mejorando la diversificación.  
-- ⏱️ **Considere el plazo de inversión esperado** (plazos cortos → menos riesgo, plazos largos → mayor tolerancia).
+Objetivos del sistema:
 
----
+Cargar la información del mercado financiero (activos y correlaciones).
 
-## 📊 Datos utilizados
+Validar coherencia, límites y formato de datos.
 
-### Activos financieros (`data/activos.csv`)
-Cada activo contiene:
-| Campo | Descripción |
-|--------|--------------|
-| **Ticker** | Identificador (ej: AAPL, XOM, TLT) |
-| **Tipo** | Acción, Bono, ETF, CEDEAR, ON, etc. |
-| **Sector** | Tecnología, Energía, Finanzas, etc. |
-| **Retorno esperado** | Rentabilidad anual esperada (en decimal) |
-| **Riesgo (σ)** | Desvío estándar del rendimiento (en decimal) |
-| **Monto mínimo** | Inversión mínima en ese activo |
+Generar una cartera factible inicial.
 
-### Correlaciones (`data/correlaciones.csv`)
-Una **matriz n×n** con los coeficientes de correlación entre cada par de activos (de −1 a +1).  
-La diagonal principal vale 1.
+Aplicar un método Greedy para obtener una buena solución inicial.
 
-Ejemplo:
-,ticker,AAPL,XOM,TLT
-AAPL,1,0.35,-0.10
-XOM,0.35,1,0.05
-TLT,-0.10,0.05,1
+Aplicar Branch & Bound para encontrar la solución óptima.
 
-yaml
-Copiar código
+Comparar resultados y generar un reporte final con métricas.
 
----
+ Estructura del Proyecto
+TPO-PROGRA/
+│
+├── data/                # Archivos de entrada (activos, correlaciones, mercado.json)
+│   ├── activos_financieros_60.csv
+│   ├── correlaciones_60.csv
+│   └── mercado.json
+│
+├── lib/                 # Librerías externas
+│   └── gson-2.10.1.jar
+│
+├── src/
+│   ├── io/              # Entrada/Salida y Reportes
+│   ├── model/           # Clases del modelo de dominio
+│   ├── validacion/      # Validaciones del sistema
+│   ├── heuristicas/     # Métodos Greedy y Semilla Factible
+│   └── optimizacion/    # Algoritmo Branch & Bound
+│
+├── App.java             # Programa principal
+├── README.md            # Este archivo
+└── .gitignore
 
-## 👤 Parámetros del cliente
+ Componentes principales:
+Módulo	Descripción
+I/O	Lectura y escritura de archivos JSON / CSV.
+Modelo	Representa los activos, mercado, perfil del cliente y asignaciones.
+Validaciones	Controla límites de presupuesto, riesgo, tipos y sectores.
+Semilla Factible	Construye una primera cartera siempre válida.
+Greedy Inicial	Selecciona activos con mayor relación retorno/riesgo.
+Branch & Bound	Explora combinaciones posibles con poda por cota superior.
+Reporte	Imprime y exporta el resumen de resultados.
 
-Cada cliente define:
+Metodología aplicada:
 
-| Parámetro | Descripción |
-|------------|--------------|
-| **Perfil** | Conservador / Moderado / Agresivo |
-| **Riesgo máximo permitido** | σₚ ≤ límite del perfil |
-| **Retorno mínimo deseado** | Rₚ ≥ umbral del perfil |
-| **Monto máximo** | Capital disponible para invertir |
-| **Plazo esperado (años)** | Horizonte temporal de inversión |
-| **Diversificación** | Máximo por tipo y sector (ej: máx 2 acciones de Tecnología) |
-| **Cantidad de activos** | Entre 3 y 6 |
+Greedy Heuristic
+Construye una solución rápida eligiendo activos con mejor ratio retorno/sigma (rentabilidad por unidad de riesgo).
+Cumple todas las restricciones y sirve como cota inferior para el Branch & Bound.
 
----
+Branch & Bound (Ramificación y Poda)
+Explora sistemáticamente el espacio de soluciones:
 
-## ⚙️ Funcionamiento del algoritmo
+Cada nodo representa una decisión de invertir o no en un activo (o en múltiplos del monto mínimo).
 
-El algoritmo se basa en **Backtracking + Branch & Bound (Ramificación y Poda)**.
+Se calcula una cota superior optimista del retorno para decidir si expandir o podar la rama.
 
-1. **Backtracking:**  
-   Se construye el portafolio evaluando cada activo: *tomarlo o no tomarlo*.  
-   El árbol de decisiones explora todas las combinaciones posibles (2ⁿ ramas).
+Se actualiza la mejor solución conocida cuando se encuentra una cartera válida con mayor retorno.
 
-2. **Branch & Bound:**  
-   Se aplican **cotas** para **poda temprana**:
-   - **Cota Inferior (LB):** solución *greedy* factible inicial (sin fracciones).  
-   - **Cota Superior (UB):** solución *optimista* (greedy fraccional) con el presupuesto restante.  
-   Si `UB ≤ mejorLB`, se **poda la rama**.
+Cota superior con riesgo residual
+Una mejora adicional considera el riesgo parcial de la cartera y ajusta la cota optimista según el “presupuesto de riesgo” restante, logrando una poda más eficiente.
 
-3. **Riesgo del portafolio:**  
-   Se calcula usando la **matriz de covarianzas Σ**, derivada de las correlaciones:
-   \[
-   Σ_{ij} = ρ_{ij} · σ_i · σ_j
-   \]
-   \[
-   σ_p = \sqrt{w^T · Σ · w}
-   \]
-   donde `w` son los pesos de inversión.
+ Ejecución del proyecto
+ Requisitos
 
-4. **Validaciones:**
-   - Riesgo total ≤ riesgo máximo del perfil.  
-   - Retorno total ≥ retorno mínimo.  
-   - Monto total ≤ presupuesto.  
-   - 3 ≤ activos ≤ 6.  
-   - Cumplir límites por tipo y sector.
+Java JDK 11 o superior.
 
----
+Librería GSON (lib/gson-2.10.1.jar).
 
-## 🧮 Estructura del código (Java)
+ Compilación y ejecución
 
-src/
-model/
-Activo.java # Clase con datos de cada activo
-Perfil.java # Define límites de riesgo y retorno
-Cliente.java # Preferencias y presupuesto del cliente
-Mercado.java # Lista de activos + matriz de correlaciones
-Portafolio.java # Composición del portafolio (selección + pesos)
+Desde la raíz del proyecto:
 
-core/
-Riesgo.java # Cálculo de riesgo total (σₚ = √(wᵀΣw))
-Validacion.java # Reglas del sistema (riesgo, retorno, diversificación)
-Greedy.java # Estrategia para LB (solución factible inicial)
-Bound.java # Cálculo de UB (estimación optimista)
-BranchAndBound.java# Algoritmo principal con poda
+Remove-Item -Recurse -Force bin 2>$null; New-Item -ItemType Directory -Path bin 1>$null;
+javac -cp "lib\gson-2.10.1.jar" -d bin src\App.java src\io\CargadorDatosJson.java src\io\Reporte.java src\io\dto\ActivoJson.java src\io\dto\MercadoJson.java src\model\*.java src\validacion\*.java src\heuristicas\*.java src\optimizacion\BBPortafolio.java;
+java -cp "bin;lib\gson-2.10.1.jar" App
 
-io/
-CargadorDatos.java # Lee CSV (activos, correlaciones)
-Reporte.java # Genera y muestra los resultados
+ Ejemplo de salida:
+ 
+Activos: 60
+Matriz rho: 60 x 60
+OK: Mercado válido
+OK: Perfil válido
+Cliente: Cliente Demo
 
-App.java # Punto de entrada
+--- SEMILLA ---
+Presupuesto: 100000.00
+Invertido:   95000.00
+Retorno esp: 0.081
+Riesgo (σ): 0.108 (max 0.250)
 
-yaml
-Copiar código
+--- GREEDY ---
+Presupuesto: 100000.00
+Invertido:   95000.00
+Retorno esp: 0.110
+Riesgo (σ): 0.023
 
----
+--- BRANCH & BOUND ---
+Presupuesto: 100000.00
+Invertido:   95000.00
+Retorno esp: 0.110
+Riesgo (σ): 0.023
+Nodos visitados: 214
 
-## ▶️ Ejecución
+ Conclusiones
 
-### Compilación manual
-```bash
-javac -d bin $(find src -name "*.java")
+El sistema permite analizar portafolios de inversión respetando límites reales de riesgo y diversificación.
+
+La heurística Greedy proporciona una cota inicial y soluciones de calidad en poco tiempo.
+
+El algoritmo Branch & Bound garantiza la óptima global, aunque con mayor costo computacional.
+
+Al combinar ambos métodos, se logra un equilibrio entre eficiencia y precisión.
+
+Integrantes
+Mones Ruiz Ignacio 
+Gomez Francisco
+Materia: Programación III
+
+Carrera: Ingeniería en Informática – UADE
+
+Año: 2025
