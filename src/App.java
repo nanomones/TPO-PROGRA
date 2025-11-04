@@ -62,6 +62,10 @@ var a = new model.Asignacion(asignacion);
 // validar contra perfil/mercado
 validacion.ValidadorAsignacion.validar(m, perfil, a);
 System.out.println("OK: Asignacion valida. Riesgo dentro del limite.");
-    }
+        // --- GREEDY ---
+var aGreedy = heuristicas.GreedyInicial.construir(m, perfil);
+System.out.println("\n--- GREEDY ---");
+io.Reporte.imprimirResumen(m, perfil, aGreedy);
+     }
   }
 
