@@ -50,5 +50,10 @@ public class App {
         Asignacion aGreedy = GreedyInicial.construir(m, perfil);
         System.out.println("\n--- GREEDY ---");
         Reporte.imprimirResumen(m, perfil, aGreedy);
+        // --- BRANCH & BOUND ---
+optimizacion.BBPortafolio.Resultado res = optimizacion.BBPortafolio.maximizarRetorno(m, perfil);
+System.out.println("\n--- BRANCH & BOUND ---");
+io.Reporte.imprimirResumen(m, perfil, res.mejor);
+System.out.println("Nodos visitados: " + res.nodosVisitados);
     }
 }
