@@ -11,7 +11,7 @@ public final class ValidadorAsignacion {
 
         // --- sumas básicas
         double total = 0.0;
-        for (double v : a.montos.values()) total += v;
+        for (double v : a.getMontos().values()) total += v;
 
         if (total - p.presupuesto > 1e-9) {
             throw new IllegalArgumentException(String.format("Excede presupuesto: %.2f > %.2f", total, p.presupuesto));
@@ -19,7 +19,7 @@ public final class ValidadorAsignacion {
 
         // --- por activo: montoMin y tope por activo
         double topePorActivoAbs = p.maxPorActivo * p.presupuesto;
-        for (Map.Entry<String,Double> e : a.montos.entrySet()) {
+        for (Map.Entry<String,Double> e : a.getMontos().entrySet()) {
             String tkr = e.getKey();
             double monto = e.getValue();
             if (monto <= 0) continue;
@@ -39,7 +39,7 @@ public final class ValidadorAsignacion {
         // --- límites por tipo/sector
         Map<String,Double> usoTipo = new HashMap<>();
         Map<String,Double> usoSector = new HashMap<>();
-        for (Map.Entry<String,Double> e : a.montos.entrySet()) {
+        for (Map.Entry<String,Double> e : a.getMontos().entrySet()) {
             String tkr = e.getKey();
             double monto = e.getValue();
             if (monto <= 0) continue;
@@ -76,7 +76,7 @@ public final class ValidadorAsignacion {
 
         // 1) cantidad de activos entre 3 y 6
         int cantidadActivos = 0;
-        for (double monto : a.montos.values()) {
+        for (double monto : a.getMontos().values()) {
             if (monto > 0.0) cantidadActivos++;
         }
         if (cantidadActivos < 3 || cantidadActivos > 6) {
