@@ -35,13 +35,12 @@ public final class GreedyInicial {
         double presupuestoRest = p.presupuesto - invertido;
 
         // orden candidatos por score retorno/sigma
-      List<Activo> candidatos = new ArrayList<>(m.activos);
-candidatos.sort((a1, a2) -> {
-    double s1 = a1.sigma > 1e-12 ? a1.retorno / a1.sigma : a1.retorno;
-    double s2 = a2.sigma > 1e-12 ? a2.retorno / a2.sigma : a2.retorno;
-    return Double.compare(s2, s1); // orden descendente
-});
-
+        List<Activo> candidatos = new ArrayList<>(m.activos);
+        candidatos.sort((a1, a2) -> {
+            double s1 = a1.sigma > 1e-12 ? a1.retorno / a1.sigma : a1.retorno;
+            double s2 = a2.sigma > 1e-12 ? a2.retorno / a2.sigma : a2.retorno;
+            return Double.compare(s2, s1); // orden descendente
+        });
 
         double topePorActivoAbs = p.maxPorActivo * p.presupuesto;
 
@@ -49,8 +48,7 @@ candidatos.sort((a1, a2) -> {
         while (progreso) {
             progreso = false;
 
-          for (Activo a : candidatos) {
-
+            for (Activo a : candidatos) {
                 boolean yaEsta = asig.containsKey(a.ticker) && asig.get(a.ticker) > 0.0;
 
                 // Si NO está y ya tengo 6 distintos, no puedo agregar otro distinto
@@ -93,6 +91,38 @@ candidatos.sort((a1, a2) -> {
 
                 // si ya no hay presupuesto útil, corto
                 if (presupuestoRest < 1e-6) break;
+            }
+        }
+
+        // 🔧 Intento final: usar el presupuesto restante si quedó algo sin invertir
+        if (presupuestoRest > 1e-6) {
+            for (Activo a : candidatos) {
+                double delta = Math.min(presupuestoRest, a.montoMin);
+                if (delta < a.montoMin - 1e-9) continue; // no alcanza para un mínimo
+
+                double actual = asig.getOrDefault(a.ticker, 0.0);
+                double nuevoTipo   = usoTipo.getOrDefault(a.tipo,0.0) + delta;
+                double nuevoSector = usoSector.getOrDefault(a.sector,0.0) + delta;
+                double limTipo     = p.maxPorTipo.getOrDefault(a.tipo,1.0)*p.presupuesto;
+                double limSector   = p.maxPorSector.getOrDefault(a.sector,1.0)*p.presupuesto;
+
+                if (nuevoTipo > limTipo + 1e-9 || nuevoSector > limSector + 1e-9) continue;
+
+                asig.put(a.ticker, actual + delta);
+                usoTipo.put(a.tipo, nuevoTipo);
+                usoSector.put(a.sector, nuevoSector);
+
+                Asignacion parcial = new Asignacion(asig);
+                double sigma = CalculadoraRiesgo.riesgoCartera(m, parcial, p.presupuesto);
+                if (sigma <= p.riesgoMax + 1e-9) {
+                    presupuestoRest -= delta;
+                    break; // aplicamos un relleno y salimos
+                } else {
+                    // deshacer si rompe riesgo
+                    asig.put(a.ticker, actual);
+                    usoTipo.put(a.tipo, nuevoTipo - delta);
+                    usoSector.put(a.sector, nuevoSector - delta);
+                }
             }
         }
 
