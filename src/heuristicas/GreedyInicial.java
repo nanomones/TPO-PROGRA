@@ -7,15 +7,16 @@ public final class GreedyInicial {
     private GreedyInicial(){}
 
     /**
-     * Mejora la semilla: prioriza mayor retorno/sigma,
-     * respeta 3..6 activos distintos. Si ya hay 6, sólo aumenta montos
-     * en los que ya están (múltiplos del montoMin).
+     * Construye una cartera inicial greedy:
+     * - Prioriza activos con mejor retorno/sigma
+     * - Penaliza correlación con los ya elegidos
+     * - Respeta 3..6 activos distintos
      */
     public static Asignacion construir(Mercado m, Perfil p){
-        // partimos de una semilla válida (3..6)
+        // Semilla inicial válida
         Asignacion base = SemillaFactible.construir(m, p);
 
-        // estado mutable
+        // Estado mutable
         LinkedHashMap<String,Double> asig = new LinkedHashMap<>(base.getMontos());
         Map<String,Double> usoTipo   = new HashMap<>();
         Map<String,Double> usoSector = new HashMap<>();
@@ -34,42 +35,37 @@ public final class GreedyInicial {
         for (double v : asig.values()) invertido += v;
         double presupuestoRest = p.presupuesto - invertido;
 
-        // orden candidatos por score retorno/sigma
-        List<Activo> candidatos = new ArrayList<>(m.activos);
-        candidatos.sort((a1, a2) -> {
-            double s1 = a1.sigma > 1e-12 ? a1.retorno / a1.sigma : a1.retorno;
-            double s2 = a2.sigma > 1e-12 ? a2.retorno / a2.sigma : a2.retorno;
-            return Double.compare(s2, s1); // orden descendente
-        });
-
         double topePorActivoAbs = p.maxPorActivo * p.presupuesto;
 
         boolean progreso = true;
         while (progreso) {
             progreso = false;
 
+            // Orden dinámico: score = retorno/sigma penalizado por correlación
+            List<Activo> candidatos = new ArrayList<>(m.activos);
+            candidatos.sort((a1, a2) -> {
+                double s1 = scoreConPenalizacion(m, asig, a1);
+                double s2 = scoreConPenalizacion(m, asig, a2);
+                return Double.compare(s2, s1); // descendente
+            });
+
             for (Activo a : candidatos) {
                 boolean yaEsta = asig.containsKey(a.ticker) && asig.get(a.ticker) > 0.0;
 
-                // Si NO está y ya tengo 6 distintos, no puedo agregar otro distinto
                 if (!yaEsta && distintos >= 6) continue;
 
-                // siguiente incremento es 1× montoMin
                 double delta = a.montoMin;
                 if (delta > presupuestoRest + 1e-9) continue;
 
-                // no pasarse del tope por activo
                 double actual = asig.getOrDefault(a.ticker, 0.0);
                 if (actual + delta - topePorActivoAbs > 1e-9) continue;
 
-                // topes por tipo/sector
                 double nuevoTipo   = usoTipo.getOrDefault(a.tipo,0.0) + delta;
                 double nuevoSector = usoSector.getOrDefault(a.sector,0.0) + delta;
                 double limTipo     = p.maxPorTipo.getOrDefault(a.tipo,1.0)*p.presupuesto;
                 double limSector   = p.maxPorSector.getOrDefault(a.sector,1.0)*p.presupuesto;
                 if (nuevoTipo - limTipo > 1e-9 || nuevoSector - limSector > 1e-9) continue;
 
-                // aplicar y verificar riesgo
                 asig.put(a.ticker, actual + delta);
                 usoTipo.put(a.tipo, nuevoTipo);
                 usoSector.put(a.sector, nuevoSector);
@@ -84,21 +80,19 @@ public final class GreedyInicial {
                     continue;
                 }
 
-                // quedó aplicado
                 presupuestoRest -= delta;
                 if (!yaEsta) distintos++;
                 progreso = true;
 
-                // si ya no hay presupuesto útil, corto
                 if (presupuestoRest < 1e-6) break;
             }
         }
 
-        // 🔧 Intento final: usar el presupuesto restante si quedó algo sin invertir
+        // Intento final de relleno
         if (presupuestoRest > 1e-6) {
-            for (Activo a : candidatos) {
+            for (Activo a : m.activos) {
                 double delta = Math.min(presupuestoRest, a.montoMin);
-                if (delta < a.montoMin - 1e-9) continue; // no alcanza para un mínimo
+                if (delta < a.montoMin - 1e-9) continue;
 
                 double actual = asig.getOrDefault(a.ticker, 0.0);
                 double nuevoTipo   = usoTipo.getOrDefault(a.tipo,0.0) + delta;
@@ -116,9 +110,8 @@ public final class GreedyInicial {
                 double sigma = CalculadoraRiesgo.riesgoCartera(m, parcial, p.presupuesto);
                 if (sigma <= p.riesgoMax + 1e-9) {
                     presupuestoRest -= delta;
-                    break; // aplicamos un relleno y salimos
+                    break;
                 } else {
-                    // deshacer si rompe riesgo
                     asig.put(a.ticker, actual);
                     usoTipo.put(a.tipo, nuevoTipo - delta);
                     usoSector.put(a.sector, nuevoSector - delta);
@@ -126,13 +119,35 @@ public final class GreedyInicial {
             }
         }
 
-        // asegurar 3..6 distintos
         if (distintos < 3 || distintos > 6) {
-            // En caso rarísimo, volvamos a la base
             return base;
         }
 
         return new Asignacion(asig);
+    }
+
+    // --- Nuevo: score con penalización por correlación ---
+    private static double scoreConPenalizacion(Mercado m, Map<String,Double> asig, Activo candidato) {
+        double base = candidato.sigma > 1e-12 ? candidato.retorno / candidato.sigma : candidato.retorno;
+
+        // calcular correlación promedio con los ya elegidos
+        List<Integer> idx = new ArrayList<>();
+        for (String t : asig.keySet()) {
+            if (asig.get(t) > 0.0) idx.add(m.indexOf(t));
+        }
+        if (idx.isEmpty()) return base;
+
+        int idxCand = m.indexOf(candidato.ticker);
+        double sum = 0.0; int cnt = 0;
+        for (int i : idx) {
+            sum += m.rho[i][idxCand];
+            cnt++;
+        }
+        double corrProm = cnt==0?0.0:sum/cnt;
+
+        // penalización: cuanto mayor correlación, menor score
+        double alpha = 0.5; // factor de penalización
+        return base / (1.0 + alpha * corrProm);
     }
 }
 
