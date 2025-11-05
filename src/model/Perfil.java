@@ -2,6 +2,10 @@ package model;
 
 import java.util.Map;
 
+/**
+ * Representa el perfil de riesgo de un cliente inversor.
+ * Define presupuesto, límites de riesgo, diversificación y retorno mínimo esperado.
+ */
 public final class Perfil {
 
     private final double presupuesto;
@@ -17,6 +21,7 @@ public final class Perfil {
 
     /**
      * Constructor que configura riesgoMax y retornoMin automáticamente según el tipo de perfil.
+     *
      * @param presupuesto       Presupuesto total (moneda)
      * @param maxPorActivo      Tope por activo (fracción 0..1)
      * @param maxPorTipo        Topes por tipo (fracción 0..1)
@@ -64,7 +69,7 @@ public final class Perfil {
         this.retornoMinDeseado = Math.max(retornoDeseado, this.retornoMin);
     }
 
-    // --- Getters públicos para usar en App.java ---
+    // --- Getters públicos para usar en App.java y otros módulos ---
     public double getPresupuesto() { return presupuesto; }
     public double getRiesgoMax() { return riesgoMax; }
     public double getMaxPorActivo() { return maxPorActivo; }
@@ -75,4 +80,3 @@ public final class Perfil {
     public double getRetornoMinDeseado() { return retornoMinDeseado; }
     public int getPlazoAnios() { return plazoAnios; }
 }
-
