@@ -58,11 +58,12 @@ public class App {
         // 4) Construir perfil final
         Perfil perfil = new Perfil(
             monto,
-            perfilBase.maxPorActivo,
+            perfilBase.getMaxPorActivo(),
             Map.of("Accion", pctAcciones, "Bono", pctBonos, "ETF", pctEtfs, "Otros", pctOtrosTipo),
             Map.of("Tecnologia", pctTec, "Energia", pctEner, "Salud", pctSalud, "Otros", pctOtrosSector),
-            perfilBase.nombre,
-            Math.max(perfilBase.retornoMin, retornoDeseado)
+            perfilBase.getTipoPerfil(),
+            Math.max(perfilBase.getRetornoMin(), retornoDeseado),
+            plazo
         );
 
         ValidadorPerfil.validar(perfil);
@@ -111,16 +112,16 @@ public class App {
 
         switch (opt) {
             case "1":
-                return new Perfil(100_000.0, 0.20, Map.of(), Map.of(), "Conservador", 0.10);
+                return new Perfil(100_000.0, 0.20, Map.of(), Map.of(), "Conservador", 0.10, 1);
             case "2":
-                return new Perfil(100_000.0, 0.30, Map.of(), Map.of(), "Moderadamente conservador", 0.12);
+                return new Perfil(100_000.0, 0.30, Map.of(), Map.of(), "Moderadamente conservador", 0.12, 1);
             case "3":
-                return new Perfil(100_000.0, 0.40, Map.of(), Map.of(), "Moderado", 0.14);
+                return new Perfil(100_000.0, 0.40, Map.of(), Map.of(), "Moderado", 0.14, 1);
             case "4":
-                return new Perfil(100_000.0, 0.50, Map.of(), Map.of(), "Moderadamente agresivo", 0.16);
+                return new Perfil(100_000.0, 0.50, Map.of(), Map.of(), "Moderadamente agresivo", 0.16, 1);
             case "5":
             default:
-                return new Perfil(100_000.0, 0.60, Map.of(), Map.of(), "Agresivo", 0.18);
+                return new Perfil(100_000.0, 0.60, Map.of(), Map.of(), "Agresivo", 0.18, 1);
         }
     }
 
@@ -145,7 +146,7 @@ public class App {
             Activo mejorReemplazo = null;
             for (Activo a : mercado.activos) {
                 if (!nuevaAsignacion.containsKey(a.ticker)
-                        && a.sigma <= perfil.riesgoMax
+                        && a.sigma <= perfil.getRiesgoMax()
                         && a.retorno > retornoMenor) {
                     if (mejorReemplazo == null || a.retorno > mejorReemplazo.retorno) {
                         mejorReemplazo = a;
