@@ -16,4 +16,14 @@ public final class Mercado {
     }
 
     public int indexOf(String ticker){ return idxPorTicker.getOrDefault(ticker, -1); }
+    /** Busca un activo por su ticker (retorna null si no existe) */
+public Activo buscarPorTicker(String ticker) {
+    for (Activo a : this.activos) {
+        if (a.ticker.equalsIgnoreCase(ticker)) {
+            return a;
+        }
+    }
+    return null;
+}
+
 }

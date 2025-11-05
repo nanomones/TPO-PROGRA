@@ -5,7 +5,7 @@ import validacion.ValidadorMercado;
 import model.Perfil;
 import model.Cliente;
 import validacion.ValidadorPerfil;
-
+import model.Activo;
 import model.Asignacion;
 import heuristicas.SemillaFactible;
 import heuristicas.GreedyInicial;
@@ -55,6 +55,62 @@ Perfil perfil = new Perfil(
 optimizacion.BBPortafolio.Resultado res = optimizacion.BBPortafolio.maximizarRetorno(m, perfil);
 System.out.println("\n--- BRANCH & BOUND ---");
 io.Reporte.imprimirResumen(m, perfil, res.mejor);
+// ------- Mostrar alternativas (Parte B) -------
+
+// Alternativa 1: solución Greedy (ya implementada)
+System.out.println("\n===== Alternativa 1: Portafolio Greedy =====");
+Reporte.imprimirResumen(m, perfil, aGreedy);
+
+// Alternativa 2: mutación del óptimo
+System.out.println("\n===== Alternativa 2: Portafolio Mutado =====");
+Asignacion alternativa2 = mutarAsignacion(res.mejor, m, perfil);
+Reporte.imprimirResumen(m, perfil, alternativa2);
 System.out.println("Nodos visitados: " + res.nodosVisitados);
     }
+    private static Asignacion mutarAsignacion(Asignacion original, Mercado mercado, Perfil perfil) {
+    // Copiar los montos originales
+    Map<String, Double> nuevaAsignacion = new java.util.LinkedHashMap<>(original.getMontos());
+
+    // Buscar el ticker con menor retorno
+    String tickerMenor = null;
+    double retornoMenor = Double.MAX_VALUE;
+
+    for (String t : nuevaAsignacion.keySet()) {
+        Activo a = mercado.buscarPorTicker(t);
+        if (a != null && a.retorno < retornoMenor) {
+            retornoMenor = a.retorno;
+            tickerMenor = t;
+        }
+    }
+
+    if (tickerMenor != null) {
+        // Quitamos ese activo
+        nuevaAsignacion.remove(tickerMenor);
+
+        // Buscamos un reemplazo con mejor retorno y riesgo aceptable
+        Activo mejorReemplazo = null;
+        for (Activo a : mercado.activos) {
+            if (!nuevaAsignacion.containsKey(a.ticker)
+                    && a.sigma <= perfil.riesgoMax
+                    && a.retorno > retornoMenor) {
+                if (mejorReemplazo == null || a.retorno > mejorReemplazo.retorno) {
+                    mejorReemplazo = a;
+                }
+            }
+        }
+
+        // Si encontramos un reemplazo, le asignamos el mismo monto
+        if (mejorReemplazo != null) {
+            double montoAnterior = original.getMonto(tickerMenor);
+            nuevaAsignacion.put(mejorReemplazo.ticker, montoAnterior);
+        } else {
+            // Si no hay reemplazo, reponemos el original
+            nuevaAsignacion.put(tickerMenor, original.getMonto(tickerMenor));
+        }
+    }
+
+    // Crear una nueva Asignacion con el mapa modificado
+    return new Asignacion(nuevaAsignacion);
+}
+
 }
