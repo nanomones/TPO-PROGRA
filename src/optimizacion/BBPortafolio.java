@@ -21,21 +21,19 @@ public final class BBPortafolio {
     public static Resultado maximizarRetorno(Mercado m, Perfil p){
         final int n = m.activos.size();
 
-        // Orden de exploración por score (ret/sigma) desc
-        List<Integer> orden = new ArrayList<>();
-        for (int i=0;i<n;i++) orden.add(i);
-        orden.sort((i,j)->{
-            Activo ai = m.activos.get(i);
-            Activo aj = m.activos.get(j);
-            double si = ai.sigma>1e-12 ? ai.retorno/ai.sigma : ai.retorno;
-            double sj = aj.sigma>1e-12 ? aj.retorno/aj.sigma : aj.retorno;
-            return Double.compare(sj, si);
-        });
-
-        // Cota inferior inicial con Greedy
+        // Semilla y cota inferior inicial con Greedy
         Asignacion best = heuristicas.GreedyInicial.construir(m, p);
         double bestRet  = CalculadoraRetorno.retornoCartera(m, best, p.presupuesto);
         double bestRisk = CalculadoraRiesgo.riesgoCartera(m, best, p.presupuesto);
+
+        // Orden de exploración: eficiencia retorno/sigma penalizada por correlación con la semilla
+        Set<String> seedTickers = new HashSet<>(best.getMontos().keySet());
+        List<Activo> orden = new ArrayList<>(m.activos);
+        orden.sort((a1, a2) -> {
+            double s1 = scoreInicial(m, seedTickers, a1);
+            double s2 = scoreInicial(m, seedTickers, a2);
+            return Double.compare(s2, s1); // descendente
+        });
 
         // Estado mutable para backtracking
         LinkedHashMap<String,Double> asig = new LinkedHashMap<>();
@@ -49,7 +47,7 @@ public final class BBPortafolio {
         return new Resultado(best, bestRet, bestRisk, nodos[0]);
     }
 
-    private static void backtrack(int k, Mercado m, Perfil p, List<Integer> ord,
+    private static void backtrack(int k, Mercado m, Perfil p, List<Activo> ord,
                                   LinkedHashMap<String,Double> asig, double presupuestoRest,
                                   Map<String,Double> usoTipo, Map<String,Double> usoSector,
                                   double[] bestRet, Asignacion[] best, double[] bestRisk, int[] nodos) {
@@ -66,7 +64,7 @@ public final class BBPortafolio {
         if (ub <= bestRet[0] + 1e-12) return;
 
         // Nodo actual
-        Activo act = m.activos.get(ord.get(k));
+        Activo act = ord.get(k);
         double topeActivoAbs = p.maxPorActivo * p.presupuesto;
         double unit = act.montoMin;
 
@@ -91,7 +89,8 @@ public final class BBPortafolio {
             if (nuevoTipo > limTipo + 1e-9 || nuevoSector > limSector + 1e-9) continue;
 
             // Aplicar delta
-            asig.put(act.ticker, asig.getOrDefault(act.ticker, 0.0) + delta);
+            double prevActual = asig.getOrDefault(act.ticker, 0.0);
+            asig.put(act.ticker, prevActual + delta);
             usoTipo.put(act.tipo, nuevoTipo);
             usoSector.put(act.sector, nuevoSector);
 
@@ -104,15 +103,20 @@ public final class BBPortafolio {
             }
 
             // Deshacer
-            double prev = asig.get(act.ticker) - delta;
-            if (prev <= 1e-12) asig.remove(act.ticker); else asig.put(act.ticker, prev);
+            if (prevActual <= 1e-12 && delta > 0) {
+                // se había agregado nuevo ticker
+                asig.remove(act.ticker);
+            } else {
+                asig.put(act.ticker, prevActual);
+            }
             usoTipo.put(act.tipo, nuevoTipo - delta);
             usoSector.put(act.sector, nuevoSector - delta);
         }
     }
 
-    // Cota superior: retorno parcial + fraccional optimista con presupuesto y límites (sin riesgo, rápido)
-    private static double boundOptimista(Mercado m, Perfil p, List<Integer> ord, int k,
+    // Cota superior: retorno parcial + fraccional optimista con presupuesto y límites
+    // Atenuado por riesgo parcial (si está cerca del máximo, reducimos el optimismo del extra)
+    private static double boundOptimista(Mercado m, Perfil p, List<Activo> ord, int k,
                                          Map<String,Double> asig,
                                          Map<String,Double> usoTipo, Map<String,Double> usoSector,
                                          double presupuestoRest) {
@@ -123,11 +127,22 @@ public final class BBPortafolio {
             retParcial += w * m.activos.get(idx).retorno;
         }
 
+        // Riesgo parcial para atenuar el optimismo del extra
+        double riesgoParcial;
+        try {
+            riesgoParcial = CalculadoraRiesgo.riesgoCartera(m, new Asignacion(asig), p.presupuesto);
+        } catch (Exception ignore) {
+            riesgoParcial = 0.0;
+        }
+        // Factor de atenuación: si el riesgo parcial ya está alto, el extra es menos creíble
+        double margenRiesgo = Math.max(0.0, p.riesgoMax - riesgoParcial);
+        double factorAtenuacion = 0.5 + 0.5 * Math.min(1.0, margenRiesgo / p.riesgoMax); // en [0.5,1]
+
         double retExtra = 0.0;
         double resto = presupuestoRest;
 
         for (int i=k;i<ord.size() && resto>1e-9;i++){
-            Activo a = m.activos.get(ord.get(i));
+            Activo a = ord.get(i);
             double limTipoRest   = p.maxPorTipo.getOrDefault(a.tipo, 1.0)*p.presupuesto - usoTipo.getOrDefault(a.tipo, 0.0);
             double limSectorRest = p.maxPorSector.getOrDefault(a.sector,1.0)*p.presupuesto - usoSector.getOrDefault(a.sector,0.0);
             double topeActivo    = p.maxPorActivo * p.presupuesto;
@@ -139,7 +154,8 @@ public final class BBPortafolio {
             retExtra += w * a.retorno;
             resto -= cap;
         }
-        return retParcial + retExtra;
+
+        return retParcial + factorAtenuacion * retExtra;
     }
 
     private static void evaluarYActualizar(Mercado m, Perfil p,
@@ -170,7 +186,7 @@ public final class BBPortafolio {
         }
     }
 
-    // --- helper local: correlación media de la cartera (solo pares seleccionados) ---
+    // --- helper: correlación media de la cartera (solo pares seleccionados) ---
     private static double correlacionMedia(Mercado m, Asignacion a){
         List<Integer> idx = new ArrayList<>();
         for (String t : a.getMontos().keySet()){
@@ -186,5 +202,27 @@ public final class BBPortafolio {
         }
         return cnt==0?0.0:sum/cnt;
     }
-}
 
+    // --- helper: score inicial con penalización por correlación respecto de la semilla ---
+    private static double scoreInicial(Mercado m, Set<String> seedTickers, Activo cand){
+        double base = cand.sigma > 1e-12 ? cand.retorno / cand.sigma : cand.retorno;
+        if (seedTickers.isEmpty()) return base;
+
+        int idxCand = m.indexOf(cand.ticker);
+        double sum = 0.0; int cnt = 0;
+        for (String t : seedTickers) {
+            double w = 0.0;
+            // considerar solo los que la semilla tiene con monto > 0
+            // (si alguna entrada quedó con 0, es ruido)
+            int idx = m.indexOf(t);
+            if (idx >= 0) {
+                sum += m.rho[idx][idxCand];
+                cnt++;
+            }
+        }
+        double corrProm = cnt==0 ? 0.0 : sum/cnt;
+
+        double alpha = 0.5; // penalización moderada
+        return base / (1.0 + alpha * corrProm);
+    }
+}
