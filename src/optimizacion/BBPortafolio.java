@@ -26,13 +26,9 @@ public final class BBPortafolio {
         double bestRet  = CalculadoraRetorno.retornoCartera(m, best, p.presupuesto);
         double bestRisk = CalculadoraRiesgo.riesgoCartera(m, best, p.presupuesto);
 
-        // Orden de exploración: score agresivo (más peso al retorno)
+        // Orden de exploración: retorno puro (más agresivo imposible)
         List<Activo> orden = new ArrayList<>(m.activos);
-        orden.sort((a1, a2) -> {
-            double s1 = scoreAgresivo(a1);
-            double s2 = scoreAgresivo(a2);
-            return Double.compare(s2, s1);
-        });
+        orden.sort((a1, a2) -> Double.compare(a2.retorno, a1.retorno));
 
         // Estado mutable
         LinkedHashMap<String,Double> asig = new LinkedHashMap<>();
@@ -57,7 +53,7 @@ public final class BBPortafolio {
             return;
         }
 
-        // Bound optimista más permisivo
+        // Bound optimista: retorno parcial + fraccional puro
         double ub = boundOptimista(m, p, ord, k, asig, usoTipo, usoSector, presupuestoRest);
         if (ub <= bestRet[0] + 1e-12) return;
 
@@ -86,7 +82,7 @@ public final class BBPortafolio {
             usoTipo.put(act.tipo, nuevoTipo);
             usoSector.put(act.sector, nuevoSector);
 
-            // 🚨 Cambio: ya no podo por riesgo parcial aquí, dejo explorar
+            // 🚨 Sin poda por riesgo aquí → explora igual
             backtrack(k+1, m, p, ord, asig, presupuestoRest - delta,
                       usoTipo, usoSector, bestRet, best, bestRisk, nodos);
 
@@ -140,43 +136,11 @@ public final class BBPortafolio {
             double r = CalculadoraRetorno.retornoCartera(m, a, p.presupuesto);
             double risk = CalculadoraRiesgo.riesgoCartera(m, a, p.presupuesto);
 
-            boolean mejor = false;
-            if (r > bestRet[0] + 1e-12 && risk <= p.riesgoMax + 1e-9) {
-                mejor = true;
-            } else if (Math.abs(r - bestRet[0]) <= 1e-12) {
-                double corrA = correlacionMedia(m, a);
-                double corrBest = (best[0] == null) ? Double.POSITIVE_INFINITY : correlacionMedia(m, best[0]);
-                if (corrA < corrBest - 1e-12) mejor = true;
-            }
-
-            if (mejor) {
+            if (risk <= p.riesgoMax + 1e-9 && r > bestRet[0] + 1e-12) {
                 bestRet[0]  = r;
                 best[0]     = a;
                 bestRisk[0] = risk;
             }
         } catch (IllegalArgumentException ignore) {}
-    }
-
-    private static double correlacionMedia(Mercado m, Asignacion a){
-        List<Integer> idx = new ArrayList<>();
-        for (String t : a.getMontos().keySet()){
-            if (a.getMonto(t) > 0.0) idx.add(m.indexOf(t));
-        }
-        if (idx.size() < 2) return 0.0;
-        double sum=0.0; int cnt=0;
-        for (int i=0;i<idx.size();i++){
-            for (int j=i+1;j<idx.size();j++){
-                sum += m.rho[idx.get(i)][idx.get(j)];
-                cnt++;
-            }
-        }
-        return cnt==0?0.0:sum/cnt;
-    }
-
-    // Score agresivo: más peso al retorno puro, menos al sigma
-    private static double scoreAgresivo(Activo a){
-        double base = a.retorno;
-        double penal = (a.sigma > 1e-12) ? a.sigma : 1.0;
-        return base / Math.sqrt(penal); // menos castigo al riesgo
     }
 }
