@@ -25,7 +25,7 @@ private static double correlacionMedia(Mercado m, Asignacion a){
     System.out.println("Perfil: " + p.tipoPerfil);
 System.out.printf(java.util.Locale.US,
     "Retorno mínimo requerido: %.3f%%%n",
-    Math.max(p.retornoMin, p.retornoMinDeseado));
+        double retornoRequerido = Math.max(p.getRetornoMin(), p.getRetornoMinDeseado());
         double ret = CalculadoraRetorno.retornoCartera(m, a, p.presupuesto);
         double sig = CalculadoraRiesgo.riesgoCartera(m, a, p.presupuesto);
 
