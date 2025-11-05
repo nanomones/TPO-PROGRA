@@ -21,14 +21,20 @@ private static double correlacionMedia(Mercado m, Asignacion a){
     }
     return cnt==0?0.0:sum/cnt;
 }
-   public static void imprimirResumen(Mercado m, Perfil p, Asignacion a){
-    System.out.println("Perfil: " + p.tipoPerfil);
-System.out.printf(java.util.Locale.US,
-    "Retorno mínimo requerido: %.3f%%%n",
-        double retornoRequerido = Math.max(p.getRetornoMin(), p.getRetornoMinDeseado());
-        double ret = CalculadoraRetorno.retornoCartera(m, a, p.presupuesto);
-        double sig = CalculadoraRiesgo.riesgoCartera(m, a, p.presupuesto);
+    public static void imprimirResumen(Mercado m, Perfil p, Asignacion a) {
+    System.out.println("Perfil: " + p.getTipoPerfil());
 
+    double retornoRequerido = Math.max(p.getRetornoMin(), p.getRetornoMinDeseado());
+    double ret = CalculadoraRetorno.retornoCartera(m, a, p.getPresupuesto());
+    double sig = CalculadoraRiesgo.riesgoCartera(m, a, p.getPresupuesto());
+
+    System.out.printf(java.util.Locale.US,
+        "Retorno mínimo requerido: %.3f%%%n", retornoRequerido);
+    System.out.printf(java.util.Locale.US,
+        "Retorno cartera: %.3f%%%n", ret);
+    System.out.printf(java.util.Locale.US,
+        "Riesgo (sigma): %.3f%n", sig);
+}
         System.out.println("=== CARTERA ===");
         System.out.printf(java.util.Locale.US, "Presupuesto: %.2f%n", p.presupuesto);
         System.out.printf(java.util.Locale.US, "Invertido:   %.2f%n", a.totalInvertido());
