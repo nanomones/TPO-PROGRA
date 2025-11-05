@@ -35,14 +35,13 @@ public final class GreedyInicial {
         double presupuestoRest = p.presupuesto - invertido;
 
         // orden candidatos por score retorno/sigma
-        List<Integer> ord = new ArrayList<>();
-        for (int i=0;i<m.activos.size();i++) ord.add(i);
-        ord.sort((i,j)->{
-            Activo ai=m.activos.get(i), aj=m.activos.get(j);
-            double si = ai.sigma>1e-12? ai.retorno/ai.sigma : ai.retorno;
-            double sj = aj.sigma>1e-12? aj.retorno/aj.sigma : aj.retorno;
-            return Double.compare(sj, si);
-        });
+      List<Activo> candidatos = new ArrayList<>(m.activos);
+candidatos.sort((a1, a2) -> {
+    double s1 = a1.sigma > 1e-12 ? a1.retorno / a1.sigma : a1.retorno;
+    double s2 = a2.sigma > 1e-12 ? a2.retorno / a2.sigma : a2.retorno;
+    return Double.compare(s2, s1); // orden descendente
+});
+
 
         double topePorActivoAbs = p.maxPorActivo * p.presupuesto;
 
@@ -50,8 +49,8 @@ public final class GreedyInicial {
         while (progreso) {
             progreso = false;
 
-            for (int k=0; k<ord.size(); k++){
-                Activo a = m.activos.get(ord.get(k));
+          for (Activo a : candidatos) {
+
                 boolean yaEsta = asig.containsKey(a.ticker) && asig.get(a.ticker) > 0.0;
 
                 // Si NO está y ya tengo 6 distintos, no puedo agregar otro distinto
