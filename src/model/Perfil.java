@@ -4,16 +4,16 @@ import java.util.Map;
 
 public final class Perfil {
 
-    public final double presupuesto;
-    public final double riesgoMax;               // sigma máximo permitido (decimal: 0.20 = 20%)
-    public final double maxPorActivo;
-    public final Map<String, Double> maxPorTipo;
-    public final Map<String, Double> maxPorSector;
+    private final double presupuesto;
+    private final double riesgoMax;               // sigma máximo permitido (decimal: 0.20 = 20%)
+    private final double maxPorActivo;
+    private final Map<String, Double> maxPorTipo;
+    private final Map<String, Double> maxPorSector;
 
-    public final String tipoPerfil;              // Conservador, Moderadamente conservador, Moderado, Moderadamente agresivo, Agresivo
-    public final double retornoMin;              // mínimo del perfil (decimal: 0.10 = 10%)
-    public final double retornoMinDeseado;       // mínimo pedido por el cliente (>= retornoMin del perfil)
-    public final int plazoAnios = 1;             // fijo 
+    private final String tipoPerfil;              // Conservador, Moderadamente conservador, Moderado, Moderadamente agresivo, Agresivo
+    private final double retornoMin;              // mínimo del perfil (decimal: 0.10 = 10%)
+    private final double retornoMinDeseado;       // mínimo pedido por el cliente (>= retornoMin del perfil)
+    private final int plazoAnios;                 // en años
 
     /**
      * Constructor que configura riesgoMax y retornoMin automáticamente según el tipo de perfil.
@@ -24,19 +24,22 @@ public final class Perfil {
      * @param tipoPerfil        Uno de: "Conservador", "Moderadamente conservador", "Moderado",
      *                          "Moderadamente agresivo", "Agresivo"
      * @param retornoDeseado    Retorno mínimo deseado por el cliente (decimal). Se forzará a ser >= retornoMin del perfil.
+     * @param plazoAnios        Plazo de inversión en años
      */
     public Perfil(double presupuesto,
                   double maxPorActivo,
                   Map<String, Double> maxPorTipo,
                   Map<String, Double> maxPorSector,
                   String tipoPerfil,
-                  double retornoDeseado) {
+                  double retornoDeseado,
+                  int plazoAnios) {
 
         this.presupuesto = presupuesto;
         this.maxPorActivo = maxPorActivo;
         this.maxPorTipo = maxPorTipo;
         this.maxPorSector = maxPorSector;
         this.tipoPerfil = tipoPerfil;
+        this.plazoAnios = plazoAnios;
 
         String t = tipoPerfil.trim().toLowerCase();
         if (t.equals("conservador")) {
@@ -60,5 +63,16 @@ public final class Perfil {
 
         this.retornoMinDeseado = Math.max(retornoDeseado, this.retornoMin);
     }
+
+    // --- Getters públicos para usar en App.java ---
+    public double getPresupuesto() { return presupuesto; }
+    public double getRiesgoMax() { return riesgoMax; }
+    public double getMaxPorActivo() { return maxPorActivo; }
+    public Map<String, Double> getMaxPorTipo() { return maxPorTipo; }
+    public Map<String, Double> getMaxPorSector() { return maxPorSector; }
+    public String getTipoPerfil() { return tipoPerfil; }
+    public double getRetornoMin() { return retornoMin; }
+    public double getRetornoMinDeseado() { return retornoMinDeseado; }
+    public int getPlazoAnios() { return plazoAnios; }
 }
 
