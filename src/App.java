@@ -1,52 +1,175 @@
-// imports
 import io.Reporte;
 import java.util.Map;
 import java.util.Scanner;
-import model.*;
-import validacion.*;
-import heuristicas.*;
-import optimizacion.*;
-import io.*;
+
+import model.*;        // Mercado, Perfil, Cliente, Activo, Asignacion
+import validacion.*;   // ValidadorMercado, ValidadorPerfil
+import heuristicas.*;  // SemillaFactible, GreedyInicial
+import optimizacion.*; // BBPortafolio
+import io.*;           // CargadorDatosJson
 
 public class App {
     public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        // 1) Cargar y validar mercado
         Mercado m = CargadorDatosJson.cargarMercado("data/mercado.json");
         ValidadorMercado.validar(m);
-        // ... logs de mercado ...
 
-        Perfil perfil = elegirPerfil();
+        System.out.println("Activos: " + m.activos.size());
+        System.out.println("Matriz rho: " + m.rho.length + " x " + m.rho[0].length);
+        for (int i = 0; i < Math.min(5, m.activos.size()); i++) {
+            System.out.println(" - " + m.activos.get(i));
+        }
+        System.out.println("OK: Mercado valido");
+
+        // 2) Elegir perfil base
+        Perfil perfilBase = elegirPerfil(sc);
+
+        // 3) Pedir datos adicionales del cliente
+        System.out.print("Ingrese monto máximo a invertir: ");
+        double monto = Double.parseDouble(sc.nextLine().trim());
+
+        // Plazo fijo 1 año
+        int plazo = 1;
+
+        System.out.print("Ingrese retorno mínimo deseado (ej. 0.18 para 18%): ");
+        double retornoDeseado = Double.parseDouble(sc.nextLine().trim());
+
+        // Preferencias de diversificación
+        System.out.println("Ingrese preferencias de diversificación por sector (en % que sumen 100):");
+        System.out.print("Tecnologia: ");
+        double pctTec = Double.parseDouble(sc.nextLine().trim()) / 100.0;
+        System.out.print("Energia: ");
+        double pctEner = Double.parseDouble(sc.nextLine().trim()) / 100.0;
+        System.out.print("Salud: ");
+        double pctSalud = Double.parseDouble(sc.nextLine().trim()) / 100.0;
+        double pctOtrosSector = 1.0 - (pctTec + pctEner + pctSalud);
+
+        System.out.println("Ingrese preferencias de diversificación por tipo de activo (en % que sumen 100):");
+        System.out.print("Bonos: ");
+        double pctBonos = Double.parseDouble(sc.nextLine().trim()) / 100.0;
+        System.out.print("Acciones: ");
+        double pctAcciones = Double.parseDouble(sc.nextLine().trim()) / 100.0;
+        System.out.print("ETFs: ");
+        double pctEtfs = Double.parseDouble(sc.nextLine().trim()) / 100.0;
+        double pctOtrosTipo = 1.0 - (pctBonos + pctAcciones + pctEtfs);
+
+        // 4) Construir perfil final con datos del cliente
+        Perfil perfil = new Perfil(
+            monto,
+            perfilBase.maxPorActivo,
+            Map.of("Accion", pctAcciones, "Bono", pctBonos, "ETF", pctEtfs),
+            Map.of("Tecnologia", pctTec, "Energia", pctEner, "Salud", pctSalud, "Otros", pctOtrosSector),
+            perfilBase.nombre,
+            Math.max(perfilBase.retornoMin, retornoDeseado) // el mayor entre el mínimo del perfil y lo que pide el cliente
+        );
+
         ValidadorPerfil.validar(perfil);
-        // ... resto igual (Semilla, Greedy, BB, mutación) ...
+        System.out.println("OK: Perfil valido");
+
+        Cliente c = new Cliente("Cliente Demo", perfil);
+        System.out.println("Cliente: " + c.nombre + " | Plazo: " + plazo + " año(s)");
+
+        // 5) SEMILLA
+        Asignacion a0 = SemillaFactible.construir(m, perfil);
+        System.out.println("\n--- SEMILLA ---");
+        Reporte.imprimirResumen(m, perfil, a0);
+
+        // 6) GREEDY
+        Asignacion aGreedy = GreedyInicial.construir(m, perfil);
+        System.out.println("\n--- GREEDY ---");
+        Reporte.imprimirResumen(m, perfil, aGreedy);
+
+        // 7) BRANCH & BOUND
+        BBPortafolio.Resultado res = BBPortafolio.maximizarRetorno(m, perfil);
+        System.out.println("\n--- BRANCH & BOUND ---");
+        Reporte.imprimirResumen(m, perfil, res.mejor);
+
+        // Alternativa 1: Greedy
+        System.out.println("\n===== Alternativa 1: Portafolio Greedy =====");
+        Reporte.imprimirResumen(m, perfil, aGreedy);
+
+        // Alternativa 2: Mutación
+        System.out.println("\n===== Alternativa 2: Portafolio Mutado =====");
+        Asignacion alternativa2 = mutarAsignacion(res.mejor, m, perfil);
+        Reporte.imprimirResumen(m, perfil, alternativa2);
+
+        System.out.println("Nodos visitados: " + res.nodosVisitados);
     }
 
-    private static Perfil elegirPerfil() {
-        Scanner sc = new Scanner(System.in);
+    // --- Menú de perfiles base ---
+    private static Perfil elegirPerfil(Scanner sc) {
         System.out.println("Elegí perfil:");
-        System.out.println("1) Moderadamente agresivo (original)");
-        System.out.println("2) Agresivo extremo (flexible)");
+        System.out.println("1) Conservador");
+        System.out.println("2) Moderadamente conservador");
+        System.out.println("3) Moderado");
+        System.out.println("4) Moderadamente agresivo");
+        System.out.println("5) Agresivo");
         System.out.print("> ");
         String opt = sc.nextLine().trim();
 
-        if ("2".equals(opt)) {
-            return new Perfil(
-                100_000.0,  // presupuesto
-                0.50,       // maxPorActivo (50%)
-                Map.of("Accion", 1.00, "Bono", 1.00, "ETF", 1.00, "Obligacion Negociable", 1.00),
-                Map.of("Tecnologia", 1.00, "Energia", 1.00, "Salud", 1.00, "Consumo", 1.00, "Finanzas", 1.00),
-                "Agresivo extremo",
-                0.18
-            );
-        } else {
-            return new Perfil(
-                100_000.0,
-                0.15,
-                Map.of("Accion", 0.70, "Bono", 0.60, "ETF", 0.50),
-                Map.of("Tecnologia", 0.60, "Energia", 0.50, "Salud", 0.50),
-                "Moderadamente agresivo",
-                0.18
-            );
+        switch (opt) {
+            case "1":
+                return new Perfil(100_000.0, 0.20,
+                        Map.of("Accion", 0.70, "Bono", 0.60, "ETF", 0.50),
+                        Map.of("Tecnologia", 0.60, "Energia", 0.50, "Salud", 0.50),
+                        "Conservador", 0.10);
+            case "2":
+                return new Perfil(100_000.0, 0.30,
+                        Map.of("Accion", 0.70, "Bono", 0.60, "ETF", 0.50),
+                        Map.of("Tecnologia", 0.60, "Energia", 0.50, "Salud", 0.50),
+                        "Moderadamente conservador", 0.12);
+            case "3":
+                return new Perfil(100_000.0, 0.40,
+                        Map.of("Accion", 0.70, "Bono", 0.60, "ETF", 0.50),
+                        Map.of("Tecnologia", 0.60, "Energia", 0.50, "Salud", 0.50),
+                        "Moderado", 0.14);
+            case "4":
+                return new Perfil(100_000.0, 0.50,
+                        Map.of("Accion", 0.70, "Bono", 0.60, "ETF", 0.50),
+                        Map.of("Tecnologia", 0.60, "Energia", 0.50, "Salud", 0.50),
+                        "Moderadamente agresivo", 0.16);
+            case "5":
+            default:
+                return new Perfil(100_000.0, 0.60,
+                        Map.of("Accion", 1.0, "Bono", 1.0, "ETF", 1.0),
+                        Map.of("Tecnologia", 1.0, "Energia", 1.0, "Salud", 1.0),
+                        "Agresivo", 0.18);
         }
     }
-}
+
+    // --- Mutación simple ---
+    private static Asignacion mutarAsignacion(Asignacion original, Mercado mercado, Perfil perfil) {
+        Map<String, Double> nuevaAsignacion = new java.util.LinkedHashMap<>(original.getMontos());
+
+        String tickerMenor = null;
+        double retornoMenor = Double.MAX_VALUE;
+
+        for (String t : nuevaAsignacion.keySet()) {
+            Activo a = mercado.buscarPorTicker(t);
+            if (a != null && a.retorno < retornoMenor) {
+                retornoMenor = a.retorno;
+                tickerMenor = t;
+            }
+        }
+
+        if (tickerMenor != null) {
+            nuevaAsignacion.remove(tickerMenor);
+
+            Activo mejorReemplazo = null;
+            for (Activo a : mercado.activos) {
+                if (!nuevaAsignacion.containsKey(a.ticker)
+                        && a.sigma <= perfil.riesgoMax
+                        && a.retorno > retornoMenor) {
+                    if (mejorReemplazo == null || a.retorno > mejorReemplazo.retorno) {
+                        mejorReemplazo = a;
+                    }
+                }
+            }
+
+            if (mejorReemplazo != null) {
+                double montoAnterior = original.getMonto(tickerMenor);
+                nuevaAsignacion.put(mejorReemplazo.ticker,
 
 
