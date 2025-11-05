@@ -85,8 +85,8 @@ public final class ValidadorAsignacion {
 
         // 2) retorno mínimo exigido (perfil y cliente)
         double retornoCartera = CalculadoraRetorno.retornoCartera(m, a, p.presupuesto);
-        double retornoRequerido = Math.max(p.retornoMin, p.retornoMinDeseado);
-        if (retornoCartera + 1e-12 < retornoRequerido) {
+        double retornoRequerido = Math.max(p.getRetornoMin(), p.getRetornoMinDeseado());
+            if (retornoCartera + 1e-12 < retornoRequerido) {
             throw new IllegalArgumentException(
                 String.format("Retorno insuficiente: %.3f < mínimo requerido %.3f", retornoCartera, retornoRequerido)
             );
