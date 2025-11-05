@@ -2,6 +2,13 @@ import io.Reporte;
 import java.util.Map;
 import java.util.Scanner;
 
+// Importá los paquetes donde están tus clases
+import model.*;            // Mercado, Perfil, Cliente, Activo, Asignacion
+import validacion.*;       // ValidadorMercado, ValidadorPerfil, ValidadorAsignacion
+import heuristicas.*;      // SemillaFactible, GreedyInicial
+import optimizacion.*;     // BBPortafolio
+import io.*;               // CargadorDatosJson, etc. si están aquí
+
 public class App {
     public static void main(String[] args) {
         // 1) Cargar y validar mercado
@@ -15,7 +22,7 @@ public class App {
         }
         System.out.println("OK: Mercado valido");
 
-        // 2) Elegir perfil
+        // 2) Elegir perfil (usa el constructor de Perfil; no se extiende ni se setean campos)
         Perfil perfil = elegirPerfil();
 
         ValidadorPerfil.validar(perfil);
@@ -35,7 +42,7 @@ public class App {
         Reporte.imprimirResumen(m, perfil, aGreedy);
 
         // 5) BRANCH & BOUND
-        optimizacion.BBPortafolio.Resultado res = optimizacion.BBPortafolio.maximizarRetorno(m, perfil);
+        BBPortafolio.Resultado res = BBPortafolio.maximizarRetorno(m, perfil);
         System.out.println("\n--- BRANCH & BOUND ---");
         Reporte.imprimirResumen(m, perfil, res.mejor);
 
@@ -51,19 +58,27 @@ public class App {
         System.out.println("Nodos visitados: " + res.nodosVisitados);
     }
 
-    // --- Menú para elegir perfil ---
+    // --- Menú para elegir perfil usando el constructor de Perfil ---
     private static Perfil elegirPerfil() {
         Scanner sc = new Scanner(System.in);
         System.out.println("Elegí perfil:");
         System.out.println("1) Moderadamente agresivo (original)");
-        System.out.println("2) Agresivo extremo (nuevo)");
+        System.out.println("2) Agresivo extremo (flexible)");
         System.out.print("> ");
         String opt = sc.nextLine().trim();
 
         if ("2".equals(opt)) {
-            return new PerfilAgresivoExtremo();
+            // Perfil agresivo extremo: límites más altos para explorar retornos mayores
+            return new Perfil(
+                100_000.0,  // presupuesto
+                0.50,       // maxPorActivo (50%)
+                Map.of("Accion", 1.00, "Bono", 1.00, "ETF", 1.00, "Obligacion Negociable", 1.00),
+                Map.of("Tecnologia", 1.00, "Energia", 1.00, "Salud", 1.00, "Consumo", 1.00, "Finanzas", 1.00),
+                "Agresivo extremo",
+                0.18        // retorno mínimo deseado (puede ajustar)
+            );
         } else {
-            // Perfil moderado original
+            // Perfil moderadamente agresivo original (tu configuración)
             return new Perfil(
                 100_000.0,  // presupuesto
                 0.15,       // maxPorActivo (15%)
@@ -120,3 +135,4 @@ public class App {
         return new Asignacion(nuevaAsignacion);
     }
 }
+
